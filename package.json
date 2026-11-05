@@ -1,0 +1,38 @@
+{
+  "name": "leilaotec",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Leilão de peças de computador em tempo real para a turma: monte o PC mais funcional com o seu saldo.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:server": "node --watch server/index.ts",
+    "dev:web": "vite",
+    "start": "node server/index.ts",
+    "build": "vite build",
+    "check": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "e2e": "node scripts/e2e.ts"
+  },
+  "dependencies": {
+    "express": "5.3.0",
+    "socket.io": "4.8.4"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "1.9.0",
+    "@types/express": "5.0.6",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "canvas-confetti": "1.9.4",
+    "playwright": "1.64.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "socket.io-client": "4.8.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.6"
+  }
+}
