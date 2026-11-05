@@ -285,7 +285,7 @@ function BidControls({ room, me, secretBid, setSecretBid }: { room: PublicRoom; 
   );
 }
 
-export function Stage({ room, meId, secretBid, setSecretBid }: { room: PublicRoom; meId?: string; secretBid?: number | null; setSecretBid?: (v: number | null) => void }) {
+export function Stage({ room, meId, secretBid, setSecretBid, aside }: { room: PublicRoom; meId?: string; secretBid?: number | null; setSecretBid?: (v: number | null) => void; aside?: React.ReactNode }) {
   const landed = useLanded(room);
   const lot = room.lot;
   const student = !!meId;
@@ -322,6 +322,7 @@ export function Stage({ room, meId, secretBid, setSecretBid }: { room: PublicRoo
   const cols = student ? undefined : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : n <= 25 ? 5 : 6;
   return (
     <div className={student ? 'st-stage' : 'tv-stage'}>
+      {aside}
       <LotPanel room={room} compact={student} />
       {student && me && setSecretBid && <BidControls room={room} me={me} secretBid={secretBid ?? null} setSecretBid={setSecretBid} />}
       <section className={`players ${cols && n > 8 ? 'fill' : ''}`} style={cols ? ({ '--cols': cols, '--rows': Math.ceil(n / cols) } as CSSProperties) : undefined} aria-label="Alunos e lances">

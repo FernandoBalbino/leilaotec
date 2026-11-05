@@ -17,6 +17,14 @@ Atividade de abertura do tema **Empreendedorismo no atendimento** (Suporte Técn
 6. **Fim:** quando o tempo da partida acaba (o item em andamento termina primeiro), quando acabam as peças ou quando ninguém tem saldo para o item mais barato.
 7. **Apresentação na TV (só na tela do professor):** do menor percentual para o maior, com a barra "Computador funcional" indo do vermelho ao verde, as peças que faltaram e o porquê. Depois vêm o rufar, o pódio e o ranking. O professor libera o resultado para os alunos com "Mostrar resultado para a turma".
 
+### Depois da partida: 5 perguntas
+Quando o professor libera o resultado, cada aluno vê 5 perguntas montadas com o que **ele** fez no jogo: quanto gastou em acessórios, quais peças faltaram, a compra mais cara (e quanto pagou acima do lance inicial), a comparação com o vencedor e o que compraria para um cliente. Colar e arrastar texto ficam bloqueados, e cada resposta precisa ter pelo menos 15 letras. No pódio, o professor acompanha "📝 Respostas: X de Y" e lê as respostas de cada aluno.
+
+### Modo "Missão do cliente"
+Escolhido ao criar a sala ou na **Nova partida** (que reabre a mesma sala, sem os alunos digitarem o código de novo). Cada aluno recebe um cliente secreto, entre 24 missões (`shared/missions.ts`): gamer, vó das videochamadas, ENEM, podcaster, pro player etc. A missão traz uma história curta e uma dica que não entrega a lista de peças, e fica destacada na tela do aluno durante o jogo.
+- A pontuação da missão conta as peças que o cliente precisa. Peça fraca para aquele cliente vale metade (ex.: gamer com placa de vídeo básica). O que ele não precisa sai da conta (a vó não precisa de placa de vídeo). Cada acessório que ele pediu vale 8 pontos.
+- Na TV, cada slide mostra a missão, o "Missão cumprida: X%", as peças fracas, os acessórios pedidos e a lição daquele cliente.
+
 ### Pontuação
 
 | Peça | Peso |
@@ -28,7 +36,7 @@ Atividade de abertura do tema **Empreendedorismo no atendimento** (Suporte Técn
 
 Cada peça vale `peso × qualidade` (0,88 a 1). Exemplo: RAM 2GB = 0,88; RAM 32GB Gamer = 1. Peça repetida não soma, conta só a melhor. Acessórios (headset, cadeira gamer, impressora…) valem 0. Um PC completo com as melhores peças dá 100%; sem monitor, dá 90%. Empate no percentual: vence quem economizou mais.
 
-Controles do professor durante o jogo: **Encerrar lances**, **Pausar roleta** (segura o próximo giro), **Encerrar partida**, som e tela cheia. Na apresentação: ← → para navegar e espaço para pausar.
+No modo missão a pontuação é a da missão (veja acima). Controles do professor durante o jogo: **Encerrar lances**, **Pausar roleta** (segura o próximo giro), **Encerrar partida**, som e tela cheia. Na apresentação: ← → para navegar e espaço para pausar.
 
 ## Desenvolvimento
 
@@ -44,6 +52,7 @@ SECRET_SHARE=1 npm start     # todos os itens com lance secreto, para testar
 ```
 
 - `shared/catalog.ts`: as 54 peças, lances iniciais (máx. R$ 700), pesos e a função `scoreBuild`.
+- `shared/missions.ts`: as 24 missões. `shared/questions.ts`: as 5 perguntas personalizadas.
 - `server/game.ts`: as regras (sem rede). `server/index.ts`: Express + Socket.IO.
 - `web/`: React + Vite. Imagens em `web/public/items/`, sons em `web/public/sounds/`.
 - Imagens: `scripts/cut-sprites.py` recorta as folhas 3×3 geradas por IA (prompts em `docs/image-prompts.md`).

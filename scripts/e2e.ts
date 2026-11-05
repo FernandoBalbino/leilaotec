@@ -36,6 +36,8 @@ try {
   await tv.goto(URL);
   await tv.getByText('servidor online').waitFor({ timeout: 90_000 }); // Render pode estar dormindo
   await tv.getByRole('button', { name: /Sou professor/ }).click();
+  await tv.waitForTimeout(600);
+  await shot(tv, '00-criar-sala');
   await tv.getByRole('button', { name: 'Criar sala' }).click();
   const code = (await tv.locator('.code').getAttribute('aria-label'))!.replace('Código ', '');
   step(`sala ${code}`);
@@ -105,6 +107,50 @@ try {
   await kids[0].locator('.student-final').waitFor();
   await kids[0].waitForTimeout(3500);
   await shot(kids[0], '11-resultado-aluno');
+
+  // Perguntas finais: colar fica bloqueado; cada aluno responde as 5.
+  const box = kids[0].locator('.quiz textarea').first();
+  await box.focus();
+  await box.evaluate((el) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'texto colado de outro lugar');
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  if ((await box.inputValue()) !== '') errors.push('colar não foi bloqueado');
+  await kids[0].getByText('Colar está desativado').waitFor();
+  const questions = await kids[0].locator('.q-text').allTextContents();
+  step(`pergunta 1 do aluno: ${questions[0]}`);
+  for (const p of kids) {
+    for (const t of await p.locator('.quiz textarea').all()) await t.pressSequentially('Sem fonte o PC não liga, então ela vem antes.', { delay: 2 });
+    await p.getByRole('button', { name: 'Enviar respostas' }).click();
+    await p.getByText('Respostas enviadas!').waitFor();
+  }
+  await tv.getByRole('button', { name: `📝 Respostas: ${STUDENTS} de ${STUDENTS}` }).click();
+  await tv.locator('.ans-row').first().click();
+  await tv.locator('.ans').first().waitFor();
+  await shot(tv, '12-respostas-tv');
+  await tv.getByRole('button', { name: 'Fechar' }).click();
+  step('respostas ok');
+
+  // Nova partida na mesma sala, no modo missão.
+  await tv.getByRole('button', { name: 'Nova partida' }).click();
+  await tv.getByRole('button', { name: /Missão do cliente/ }).click();
+  await tv.getByRole('button', { name: 'Abrir nova partida' }).click();
+  await kids[0].locator('.mission-big').waitFor();
+  await kids[0].waitForTimeout(800); // fim da animação de entrada
+  const mission = await kids[0].locator('.mission h2').textContent();
+  step(`missão do aluno 1: ${mission}`);
+  await shot(kids[0], '13-missao-aluno');
+  await tv.getByRole('button', { name: /Começar o leilão/ }).click();
+  await kids[0].locator('.countdown').waitFor({ timeout: 15_000 });
+  await shot(kids[0], '14-lances-com-missao');
+  await tv.getByRole('button', { name: 'Encerrar partida' }).click();
+  await tv.locator('.final-intro').waitFor();
+  await tv.keyboard.press('ArrowRight');
+  await tv.locator('.slide .mission').waitFor();
+  await tv.waitForTimeout(5000);
+  await shot(tv, '15-slide-missao-tv');
+  step('modo missão ok');
   step('fim ok');
   if (errors.length) throw new Error('Erros no console:\n' + errors.join('\n'));
 } finally {

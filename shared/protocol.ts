@@ -1,5 +1,6 @@
 // Tipos e tempos trocados entre servidor e navegador.
 import { scoreBuild, type Score } from './catalog.ts';
+import { MISSION_BY_ID } from './missions.ts';
 
 export const SPIN_MS = 7000; // roleta girando
 export const INTRO_MS = 2600; // item fica grande e encolhe até o painel
@@ -9,9 +10,23 @@ export const SECRET_RESULT_MS = 9000; // revelação dos lances secretos
 export const TIE_MS = 4000; // aviso de empate antes de refazer o lance secreto
 export const MIN_STEP = 10; // aumento mínimo sobre o maior lance aberto
 export const SECRET_SHARE = 0.25; // fração de itens com lance secreto
+export const ANSWER_MIN = 15; // caracteres mínimos por resposta
+export const ANSWER_MAX = 600;
 
 export type Phase = 'lobby' | 'spinning' | 'bidding' | 'result' | 'finished';
 export type EndReason = 'time' | 'items' | 'money' | 'teacher';
+export type GameMode = 'classic' | 'mission';
+
+export interface AnswerSheet {
+  questions: string[];
+  answers: string[];
+}
+
+export interface MatchSettings {
+  startingBalance: number;
+  matchMinutes: number;
+  mode: GameMode;
+}
 
 export interface PublicPlayer {
   id: string;
@@ -57,6 +72,7 @@ export interface HistoryEntry {
 export interface PublicRoom {
   code: string;
   phase: Phase;
+  mode: GameMode;
   serverNow: number;
   startingBalance: number;
   matchMinutes: number;
@@ -69,23 +85,29 @@ export interface PublicRoom {
   revealed: boolean;
   endReason: EndReason | null;
   history: HistoryEntry[];
+  missions: Record<string, string> | null; // playerId → missão; só aparece quando a partida acaba
+  answered: string[]; // quem já respondeu as perguntas finais
 }
 
 export type Ack<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
 export interface ClientEvents {
-  'teacher:create': (p: { startingBalance: number; matchMinutes: number }, ack: (r: Ack<{ code: string; token: string }>) => void) => void;
+  'teacher:create': (p: MatchSettings, ack: (r: Ack<{ code: string; token: string }>) => void) => void;
+  'teacher:restart': (p: MatchSettings, ack: (r: Ack) => void) => void;
+  'teacher:answers': (p: object, ack: (r: Ack<{ answers: Record<string, AnswerSheet> }>) => void) => void;
   'teacher:resume': (p: { code: string; token: string }, ack: (r: Ack) => void) => void;
   'teacher:action': (p: { action: 'start' | 'pause' | 'resume' | 'close' | 'end' | 'reveal' | 'kick'; playerId?: string }, ack: (r: Ack) => void) => void;
   'player:join': (p: { code: string; name: string }, ack: (r: Ack<{ playerId: string; token: string }>) => void) => void;
   'player:resume': (p: { code: string; token: string }, ack: (r: Ack<{ playerId: string; secretBid: number | null }>) => void) => void;
   'player:bid': (p: { amount: number }, ack: (r: Ack) => void) => void;
+  'player:answers': (p: AnswerSheet, ack: (r: Ack) => void) => void;
 }
 
 export interface ServerEvents {
   state: (room: PublicRoom) => void;
   bid: (p: { bid: Bid; serverNow: number }) => void;
   kicked: () => void;
+  mission: (p: { missionId: string | null }) => void; // só para o próprio aluno
 }
 
 export interface Ranked {
@@ -94,10 +116,10 @@ export interface Ranked {
   position: number;
 }
 
-// Mais funcional vence; empate no percentual → quem economizou mais.
-export function rankPlayers(players: PublicPlayer[]): Ranked[] {
+// Mais funcional (ou mais perto da missão) vence; empate no percentual → quem economizou mais.
+export function rankPlayers(players: PublicPlayer[], missions?: Record<string, string> | null): Ranked[] {
   return players
-    .map((player) => ({ player, score: scoreBuild(player.items), position: 0 }))
+    .map((player) => ({ player, score: scoreBuild(player.items, missions ? MISSION_BY_ID[missions[player.id]] : undefined), position: 0 }))
     .sort((a, b) => b.score.percent - a.score.percent || b.player.balance - a.player.balance || a.player.name.localeCompare(b.player.name))
     .map((r, idx) => ({ ...r, position: idx + 1 }));
 }

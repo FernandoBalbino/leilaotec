@@ -12,6 +12,9 @@ Prints em `qa-evidence/` (gerados por `npm run e2e` e `node scripts/tv-30.ts`).
 | Vendido / lance secreto | Carimbo VENDIDO!, revelação dos lances secretos do menor para o maior | `07-vendido-tv.png` |
 | Apresentação final (TV) | Um aluno por vez, do menor percentual para o maior, com barra vermelho→verde, peças que faltaram e motivo | `09-slide-aluno-tv.png`, `30-slide.png` |
 | Pódio | Top 3, confete, ranking com desempate pelo saldo | `10-podio-tv.png`, `30-podio.png` |
+| Criar sala | Escolha do modo (Clássico / Missão do cliente), saldo e tempo | `00-criar-sala.png` |
+| Perguntas finais | 5 perguntas do próprio jogo, colar bloqueado, mínimo de 15 letras; o professor vê "Respostas X de Y" e lê cada uma | `11-resultado-aluno.png`, `12-respostas-tv.png` |
+| Modo missão | Missão secreta grande na espera e destacada durante os lances; slide final com a missão, peças fracas, acessórios pedidos e a lição | `13-missao-aluno.png`, `14-lances-com-missao.png`, `15-slide-missao-tv.png` |
 | Aluno no final | "Olhe para a TV!" até o professor liberar; depois o pódio e o resultado próprio | `08-aluno-espera-tv.png`, `11-resultado-aluno.png` |
 
 ## Critérios

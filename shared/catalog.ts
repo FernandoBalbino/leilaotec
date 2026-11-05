@@ -126,36 +126,61 @@ export const ITEMS: Item[] = [
 
 export const ITEM_BY_ID = Object.fromEntries(ITEMS.map((it) => [it.id, it])) as Record<string, Item>;
 
+export type Tier = 'mid' | 'top';
+// Qualidade mínima de cada nível (ex.: RAM 8GB já é "mid"; 16GB ou mais é "top").
+export const TIER_MIN: Record<Tier, number> = { mid: 0.94, top: 0.97 };
+export const EXTRA_POINTS = 8; // cada acessório que a missão pede
+
+// O que um cliente (missão) precisa; sem isso a pontuação é a do modo clássico.
+export interface Needs {
+  focus?: Partial<Record<SlotId, Tier>>; // peças que precisam ser boas para esse cliente
+  skip?: SlotId[]; // peças que esse cliente não precisa
+  extras?: string[]; // acessórios que contam pontos
+}
+
 export interface SlotResult {
   slot: Slot;
   item?: Item; // melhor peça do aluno nesse slot
   points: number;
+  status: 'ok' | 'weak' | 'missing' | 'skip';
 }
 
 export interface Score {
   percent: number; // 0 a 100, com 1 casa decimal
   slots: SlotResult[];
   missing: Slot[];
-  upgrades: Slot[]; // slots preenchidos com peça que não é a melhor
-  extras: Item[];
+  weak: Slot[]; // missão: tem a peça, mas fraca para esse cliente
+  upgrades: Slot[]; // clássico: slots com peça que não é a melhor
+  extras: Item[]; // acessórios comprados que não contam
+  wanted: { item: Item; owned: boolean }[]; // missão: acessórios que o cliente pediu
 }
 
-// Cada slot vale peso × qualidade da melhor peça que o aluno tem; peças repetidas não somam.
-export function scoreBuild(itemIds: string[]): Score {
+// Clássico: cada slot vale peso × qualidade da melhor peça. Missão: peça presente vale o peso
+// inteiro, metade se for fraca para o cliente; slots dispensados saem da conta; acessórios pedidos somam.
+export function scoreBuild(itemIds: string[], needs?: Needs): Score {
   const owned = itemIds.map((id) => ITEM_BY_ID[id]).filter(Boolean);
-  const slots = PC_SLOTS.map((slot) => {
-    const best = owned
-      .filter((it) => it.slot === slot.id)
-      .sort((a, b) => b.quality - a.quality)[0];
-    return { slot, item: best, points: best ? slot.weight * best.quality : 0 };
+  const skip = new Set(needs?.skip ?? []);
+  const slots: SlotResult[] = PC_SLOTS.map((slot) => {
+    const item = owned.filter((it) => it.slot === slot.id).sort((a, b) => b.quality - a.quality)[0];
+    if (needs && skip.has(slot.id)) return { slot, item, points: 0, status: 'skip' };
+    if (!item) return { slot, points: 0, status: 'missing' };
+    if (!needs) return { slot, item, points: slot.weight * item.quality, status: 'ok' };
+    const tier = needs.focus?.[slot.id];
+    const weak = !!tier && item.quality < TIER_MIN[tier];
+    return { slot, item, points: slot.weight * (weak ? 0.5 : 1), status: weak ? 'weak' : 'ok' };
   });
-  const percent = Math.round(slots.reduce((sum, s) => sum + s.points, 0) * 10) / 10;
+  const wantedIds = needs?.extras ?? [];
+  const wanted = wantedIds.map((id) => ({ item: ITEM_BY_ID[id], owned: owned.some((it) => it.id === id) }));
+  const got = slots.reduce((sum, s) => sum + s.points, 0) + wanted.filter((w) => w.owned).length * EXTRA_POINTS;
+  const total = slots.reduce((sum, s) => sum + (s.status === 'skip' ? 0 : s.slot.weight), 0) + wanted.length * EXTRA_POINTS;
   return {
-    percent,
+    percent: Math.round((got / total) * 1000) / 10,
     slots,
-    missing: slots.filter((s) => !s.item).map((s) => s.slot),
-    upgrades: slots.filter((s) => s.item && s.item.quality < 1).map((s) => s.slot),
-    extras: owned.filter((it) => it.slot === 'extra'),
+    missing: slots.filter((s) => s.status === 'missing').map((s) => s.slot),
+    weak: slots.filter((s) => s.status === 'weak').map((s) => s.slot),
+    upgrades: needs ? [] : slots.filter((s) => s.item && s.item.quality < 1).map((s) => s.slot),
+    extras: owned.filter((it) => it.slot === 'extra' && !wantedIds.includes(it.id)),
+    wanted,
   };
 }
 

@@ -1,9 +1,11 @@
 // Regras do leilão. Sem rede: o servidor chama estes métodos e publica o estado.
 import { randomBytes } from 'node:crypto';
 import { ITEMS, ITEM_BY_ID, brl } from '../shared/catalog.ts';
+import { MISSIONS } from '../shared/missions.ts';
 import {
-  BID_MS, INTRO_MS, RESULT_MS, SECRET_RESULT_MS, SECRET_SHARE, SPIN_MS, TIE_MS, minBid,
-  type Bid, type EndReason, type HistoryEntry, type Lot, type Phase, type PublicPlayer, type PublicRoom,
+  ANSWER_MAX, ANSWER_MIN, BID_MS, INTRO_MS, RESULT_MS, SECRET_RESULT_MS, SECRET_SHARE, SPIN_MS, TIE_MS, minBid,
+  type AnswerSheet, type Bid, type EndReason, type GameMode, type HistoryEntry, type Lot, type MatchSettings, type Phase,
+  type PublicPlayer, type PublicRoom,
 } from '../shared/protocol.ts';
 
 export const COLORS = [
@@ -37,10 +39,13 @@ export interface Room {
   code: string;
   teacherToken: string;
   phase: Phase;
+  mode: GameMode;
   startingBalance: number;
   matchMinutes: number;
   matchEndsAt: number | null;
   players: Player[];
+  missions: Map<string, string>; // playerId → missão secreta
+  answers: Map<string, AnswerSheet>;
   wheel: string[];
   secret: Set<string>;
   lot: Lot | null;
@@ -107,23 +112,78 @@ export class Game {
       }
   }
 
-  createRoom(startingBalance: number, matchMinutes: number) {
+  private settings(s: Partial<MatchSettings> | undefined): MatchSettings {
+    const startingBalance = Number(s?.startingBalance);
+    const matchMinutes = Number(s?.matchMinutes);
     if (!Number.isInteger(startingBalance) || startingBalance < 500 || startingBalance > 20000) fail('Saldo inicial inválido.');
     if (!Number.isInteger(matchMinutes) || matchMinutes < 5 || matchMinutes > 120) fail('Duração inválida.');
+    return { startingBalance, matchMinutes, mode: s?.mode === 'mission' ? 'mission' : 'classic' };
+  }
+
+  // Próxima missão ainda não usada na sala (24 missões; com mais alunos, repete).
+  private assignMission(room: Room, playerId: string) {
+    const used = new Set(room.missions.values());
+    const free = MISSIONS.filter((m) => !used.has(m.id));
+    const pool = free.length ? free : MISSIONS;
+    room.missions.set(playerId, pool[Math.floor(this.clock.random() * pool.length)].id);
+  }
+
+  // Deixa a sala pronta para uma partida nova (roleta embaralhada, saldos cheios, missões novas).
+  private deal(room: Room, s: MatchSettings) {
+    if (room.timer) this.clock.clear(room.timer);
+    const wheel = this.shuffle(ITEMS.map((it) => it.id));
+    Object.assign(room, {
+      ...s, phase: 'lobby', matchEndsAt: null, wheel, lot: null, paused: false, revealed: false, endReason: null,
+      history: [], timer: null, secret: new Set(this.shuffle(wheel).slice(0, Math.round(wheel.length * this.secretShare))),
+    });
+    room.sealed.clear();
+    room.answers.clear();
+    room.missions.clear();
+    for (const p of room.players) {
+      p.balance = s.startingBalance;
+      p.items = [];
+      p.bidTimes = [];
+      if (s.mode === 'mission') this.assignMission(room, p.id);
+    }
+  }
+
+  createRoom(input: Partial<MatchSettings>) {
+    const s = this.settings(input);
     this.cleanup();
     if (this.rooms.size >= this.maxRooms) fail('O servidor está cheio. Tente de novo em alguns minutos.');
     let code = '';
     do code = Array.from({ length: 4 }, () => CODE_CHARS[Math.floor(this.clock.random() * CODE_CHARS.length)]).join('');
     while (this.rooms.has(code));
-    const wheel = this.shuffle(ITEMS.map((it) => it.id));
-    const room: Room = {
-      code, teacherToken: token(), phase: 'lobby', startingBalance, matchMinutes, matchEndsAt: null,
-      players: [], wheel, secret: new Set(this.shuffle(wheel).slice(0, Math.round(wheel.length * this.secretShare))),
-      lot: null, sealed: new Map(), paused: false, revealed: false, endReason: null, history: [], timer: null,
+    const room = {
+      code, teacherToken: token(), players: [], missions: new Map(), answers: new Map(), sealed: new Map(),
       lastActivity: this.clock.now(),
-    };
+    } as unknown as Room;
+    this.deal(room, s);
     this.rooms.set(code, room);
     return room;
+  }
+
+  restart(room: Room, input: Partial<MatchSettings>) {
+    if (room.phase !== 'finished') fail('Termine a partida atual antes de começar outra.');
+    this.deal(room, this.settings(input));
+    this.touch(room);
+  }
+
+  missionOf(room: Room, playerId: string) {
+    return room.missions.get(playerId) ?? null;
+  }
+
+  submitAnswers(room: Room, playerId: string, sheet: unknown) {
+    if (room.phase !== 'finished' || !room.revealed) fail('As perguntas ainda não foram liberadas.');
+    if (room.answers.has(playerId)) fail('Você já enviou suas respostas.');
+    const { questions, answers } = (sheet ?? {}) as Partial<AnswerSheet>;
+    const ok = (list: unknown, max: number): list is string[] =>
+      Array.isArray(list) && list.length === 5 && list.every((t) => typeof t === 'string' && t.length <= max);
+    if (!ok(questions, 400) || !ok(answers, ANSWER_MAX)) fail('Responda as 5 perguntas.');
+    const clean = answers.map((a) => a.trim());
+    if (clean.some((a) => a.length < ANSWER_MIN)) fail(`Cada resposta precisa ter pelo menos ${ANSWER_MIN} letras.`);
+    room.answers.set(playerId, { questions, answers: clean });
+    this.touch(room);
   }
 
   room(code: unknown): Room {
@@ -153,6 +213,7 @@ export class Game {
       balance: room.startingBalance, items: [], online: true, bidTimes: [],
     };
     room.players.push(player);
+    if (room.mode === 'mission') this.assignMission(room, player.id);
     this.touch(room);
     return { room, player };
   }
@@ -331,6 +392,8 @@ export class Game {
     const player = room.players.find((p) => p.id === playerId) ?? fail('Aluno não encontrado.');
     room.players = room.players.filter((p) => p !== player);
     room.sealed.delete(player.id);
+    room.missions.delete(player.id);
+    room.answers.delete(player.id);
     if (room.lot && !room.lot.result) room.lot.bids = room.lot.bids.filter((b) => b.playerId !== player.id);
     this.touch(room);
     return player;
@@ -338,11 +401,14 @@ export class Game {
 
   view(room: Room): PublicRoom {
     return {
-      code: room.code, phase: room.phase, serverNow: this.clock.now(), startingBalance: room.startingBalance,
+      code: room.code, phase: room.phase, mode: room.mode, serverNow: this.clock.now(), startingBalance: room.startingBalance,
       matchMinutes: room.matchMinutes, matchEndsAt: room.matchEndsAt,
       players: room.players.map(({ id, name, color, balance, items, online }) => ({ id, name, color, balance, items, online })),
       wheel: room.wheel, secretItems: room.wheel.filter((id) => room.secret.has(id)), lot: room.lot,
       paused: room.paused, revealed: room.revealed, endReason: room.endReason, history: room.history,
+      // Missões são secretas: só saem para todos quando a partida acaba.
+      missions: room.phase === 'finished' && room.mode === 'mission' ? Object.fromEntries(room.missions) : null,
+      answered: [...room.answers.keys()],
     };
   }
 }

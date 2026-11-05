@@ -15,7 +15,7 @@ export function createGameServer(origins: string[]) {
   const io = new Server<ClientEvents, ServerEvents, Record<string, never>, { auth?: Auth }>(http, {
     cors: { origin: origins, methods: ['GET', 'POST'] },
     allowRequest: (req, cb) => cb(null, !req.headers.origin || origins.includes(req.headers.origin)),
-    maxHttpBufferSize: 4096,
+    maxHttpBufferSize: 16_384, // respostas finais: 5 × até 600 letras
     perMessageDeflate: false,
     serveClient: false,
   });
@@ -55,7 +55,13 @@ export function createGameServer(origins: string[]) {
     socket.data.auth = auth;
     socket.join(room.code);
     socket.emit('state', game.view(room));
+    if (auth.kind === 'player') socket.emit('mission', { missionId: game.missionOf(room, auth.playerId) });
   };
+  const playerSockets = (room: Room) =>
+    [...io.sockets.sockets.values()].filter((s) => {
+      const a = (s as Sock).data.auth;
+      return a?.kind === 'player' && a.code === room.code;
+    }) as Sock[];
 
   io.on('connection', (socket: Sock) => {
     const authed = () => {
@@ -70,10 +76,25 @@ export function createGameServer(origins: string[]) {
 
     socket.on('teacher:create', (p, ack) =>
       handle(ack, () => {
-        const room = game.createRoom(Number(p?.startingBalance), Number(p?.matchMinutes));
+        const room = game.createRoom(p);
         attach(socket, room, { code: room.code, kind: 'teacher' });
         return { code: room.code, token: room.teacherToken };
       }));
+
+    // Nova partida na mesma sala: os alunos continuam conectados e recebem a missão nova.
+    socket.on('teacher:restart', (p, ack) =>
+      handle(ack, () => {
+        const room = teacherRoom();
+        game.restart(room, p);
+        for (const s of playerSockets(room)) {
+          const a = s.data.auth as { playerId: string };
+          s.emit('mission', { missionId: game.missionOf(room, a.playerId) });
+        }
+        return {};
+      }));
+
+    socket.on('teacher:answers', (_p, ack) =>
+      handle(ack, () => ({ answers: Object.fromEntries(teacherRoom().answers) })));
 
     socket.on('teacher:resume', (p, ack) =>
       handle(ack, () => {
@@ -94,14 +115,12 @@ export function createGameServer(origins: string[]) {
           case 'reveal': game.reveal(room); break;
           case 'kick': {
             const kicked = game.kick(room, p.playerId);
-            for (const s of io.sockets.sockets.values()) {
-              const a = (s as Sock).data.auth;
-              if (a?.kind === 'player' && a.code === room.code && a.playerId === kicked.id) {
+            for (const s of playerSockets(room))
+              if ((s.data.auth as { playerId: string }).playerId === kicked.id) {
                 s.emit('kicked');
                 s.leave(room.code);
-                (s as Sock).data.auth = undefined;
+                s.data.auth = undefined;
               }
-            }
             break;
           }
           default: throw new GameError('Ação desconhecida.');
@@ -129,6 +148,14 @@ export function createGameServer(origins: string[]) {
         const { auth, room } = authed();
         if (auth.kind !== 'player') throw new GameError('Só alunos dão lances.');
         game.bid(room, auth.playerId, p?.amount);
+        return {};
+      }));
+
+    socket.on('player:answers', (p, ack) =>
+      handle(ack, () => {
+        const { auth, room } = authed();
+        if (auth.kind !== 'player') throw new GameError('Só alunos respondem.');
+        game.submitAnswers(room, auth.playerId, p);
         return {};
       }));
 

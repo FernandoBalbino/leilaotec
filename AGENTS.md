@@ -8,6 +8,9 @@ Jogo de leilão em tempo real para turmas do técnico em Manutenção e Suporte 
 - O servidor é autoritativo: valida saldo, lance mínimo, um lance secreto por aluno e o limite de 6 lances a cada 2 s.
 - **Lance secreto:** o valor nunca sai do servidor antes do fim (`Bid.amount = null`). Não exponha `room.sealed` em `view()`.
 - O resultado final é calculado no navegador com `rankPlayers`, e o aluno só o vê depois de `revealed`.
+- **Missões:** também são secretas. Cada aluno recebe a dele pelo evento `mission` (só no próprio socket), e `view().missions` só aparece com `phase === 'finished'`. A pontuação da missão usa `scoreBuild(itens, missão)` (`focus`/`skip`/`extras`).
+- **Perguntas finais:** `buildQuestions` (shared) gera o texto a partir de `history` e do ranking. O servidor guarda as respostas (`submitAnswers`), e só o professor lê (`teacher:answers`). O estado público tem apenas `answered`.
+- **Nova partida:** `game.restart` reaproveita a sala e os alunos e zera saldo, peças, roleta, respostas e missões.
 - Eventos: `state` (estado completo, agrupado por microtask) e `bid` (incremental). Mantenha os payloads pequenos (banda do Render).
 
 ## Regras de produto

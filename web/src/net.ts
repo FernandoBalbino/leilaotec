@@ -36,8 +36,16 @@ socket.on('bid', ({ bid, serverNow: now }) => {
   bidListeners.forEach((f) => f(bid));
 });
 
+// Missão secreta: chega só para o próprio aluno (não vem no estado da sala).
+let missionId: string | null = null;
+socket.on('mission', (p) => {
+  missionId = p.missionId;
+  emit();
+});
+
 export const clearRoom = () => {
   room = null;
+  missionId = null;
   emit();
 };
 export const onBid = (f: (bid: Bid) => void) => {
@@ -49,6 +57,7 @@ const subscribe = (f: () => void) => {
   return () => void listeners.delete(f);
 };
 export const useRoom = () => useSyncExternalStore(subscribe, () => room);
+export const useMissionId = () => useSyncExternalStore(subscribe, () => missionId);
 
 let connected = socket.connected;
 socket.on('connect', () => ((connected = true), emit()));

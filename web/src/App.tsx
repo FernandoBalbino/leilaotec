@@ -1,7 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { brl } from '../../shared/catalog.ts';
-import type { PublicRoom } from '../../shared/protocol.ts';
-import { SERVER_URL, clearRoom, loadSession, saveSession, send, socket, useConnected, useRoom, type Session } from './net.ts';
+import { MISSION_BY_ID } from '../../shared/missions.ts';
+import type { MatchSettings, PublicRoom } from '../../shared/protocol.ts';
+import { SERVER_URL, clearRoom, loadSession, saveSession, send, socket, useConnected, useMissionId, useRoom, type Session } from './net.ts';
+import { MissionCard } from './Mission.tsx';
+import { SettingsForm } from './Settings.tsx';
 import { initMuted, preloadSounds } from './sound.ts';
 import { FinalShow, StudentFinal } from './Final.tsx';
 import { Stage } from './Stage.tsx';
@@ -89,8 +92,6 @@ export function App() {
 function Home({ notice, connected, onSession }: { notice: string; connected: boolean; onSession: (s: Session) => void }) {
   const params = new URLSearchParams(location.search);
   const [mode, setMode] = useState<'home' | 'teacher' | 'student'>(params.get('sala') ? 'student' : 'home');
-  const [balance, setBalance] = useState(3000);
-  const [minutes, setMinutes] = useState(30);
   const [code, setCode] = useState((params.get('sala') ?? '').toUpperCase());
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -99,9 +100,9 @@ function Home({ notice, connected, onSession }: { notice: string; connected: boo
   // Render gratuito "dorme": já cutuca o servidor enquanto a pessoa lê a tela.
   useEffect(() => void fetch(`${SERVER_URL}/health`).catch(() => {}), []);
 
-  const create = async () => {
+  const create = async (settings: MatchSettings) => {
     setBusy(true);
-    const r = await send('teacher:create', { startingBalance: balance, matchMinutes: minutes });
+    const r = await send('teacher:create', settings);
     setBusy(false);
     if (!r.ok) return setError(r.error);
     onSession({ role: 'teacher', code: r.code, token: r.token });
@@ -158,36 +159,17 @@ function Home({ notice, connected, onSession }: { notice: string; connected: boo
             </div>
           )}
           {mode === 'teacher' && (
-            <div className="form">
-              <h2>Criar sala</h2>
-              <fieldset>
-                <legend>Saldo de cada aluno</legend>
-                <div className="seg">
-                  {[2000, 3000, 4000, 5000].map((v) => (
-                    <button key={v} className={v === balance ? 'on' : ''} onClick={() => setBalance(v)} aria-pressed={v === balance}>{brl(v)}</button>
-                  ))}
-                </div>
-              </fieldset>
-              <fieldset>
-                <legend>Tempo da partida</legend>
-                <div className="seg">
-                  {[15, 20, 30, 45, 60].map((v) => (
-                    <button key={v} className={v === minutes ? 'on' : ''} onClick={() => setMinutes(v)} aria-pressed={v === minutes}>{v} min</button>
-                  ))}
-                </div>
-              </fieldset>
-              <ul className="rules">
-                <li>🎰 A roleta gira 7 s e sorteia uma peça com lance inicial.</li>
-                <li>⏱ 1 minuto de lances. Ganha o maior lance.</li>
-                <li>🔒 Algumas peças são de lance secreto: um lance só, às cegas.</li>
-                <li>🏁 Acaba no fim do tempo, sem itens ou sem saldo.</li>
-              </ul>
-              {error && <p className="err" role="alert">{error}</p>}
-              <div className="row">
-                <button className="btn btn-ghost" onClick={() => setMode('home')}>Voltar</button>
-                <button className="btn btn-primary" onClick={create} disabled={busy || !connected}>{busy ? 'Criando…' : 'Criar sala'}</button>
-              </div>
-            </div>
+            <>
+              <h2 className="form-title">Criar sala</h2>
+              <SettingsForm submitLabel="Criar sala" busy={busy || !connected} error={error} onSubmit={create} onCancel={() => setMode('home')}>
+                <ul className="rules">
+                  <li>🎰 A roleta gira 7 s e sorteia uma peça com lance inicial.</li>
+                  <li>⏱ 1 minuto de lances. Ganha o maior lance.</li>
+                  <li>🔒 Algumas peças são de lance secreto: um lance só, às cegas.</li>
+                  <li>🏁 Acaba no fim do tempo, sem itens ou sem saldo.</li>
+                </ul>
+              </SettingsForm>
+            </>
           )}
           {mode === 'student' && (
             <form className="form" onSubmit={join}>
@@ -218,6 +200,7 @@ function TopBar({ room, children }: { room: PublicRoom; children?: React.ReactNo
     <header className="topbar">
       <Logo small />
       <span className="pill">Sala <b>{room.code}</b></span>
+      {room.mode === 'mission' && <span className="pill pill-mission">🎯 Missão do cliente</span>}
       {room.phase !== 'lobby' && room.phase !== 'finished' && (
         <>
           <MatchClock endsAt={room.matchEndsAt} />
@@ -245,7 +228,15 @@ function TeacherRoom({ room, onLeave }: { room: PublicRoom; onLeave: () => void 
   if (room.phase === 'finished')
     return (
       <div className="app tv">
-        <FinalShow room={room} onReveal={() => act('reveal')} onNew={onLeave} />
+        <FinalShow
+          room={room}
+          onReveal={() => act('reveal')}
+          onLeave={onLeave}
+          onRestart={async (settings) => {
+            const r = await send('teacher:restart', settings);
+            return r.ok ? '' : r.error;
+          }}
+        />
       </div>
     );
 
@@ -277,6 +268,7 @@ function TeacherRoom({ room, onLeave }: { room: PublicRoom; onLeave: () => void 
             </div>
             <p className="muted">
               Cada aluno começa com <b>{brl(room.startingBalance)}</b> · partida de <b>{room.matchMinutes} min</b>
+              {room.mode === 'mission' && <> · cada aluno recebe uma <b>missão secreta</b> ao entrar</>}
             </p>
           </div>
           <div className="lobby-players">
@@ -306,6 +298,8 @@ function TeacherRoom({ room, onLeave }: { room: PublicRoom; onLeave: () => void 
 
 function StudentRoom({ room, meId, secretBid, setSecretBid }: { room: PublicRoom; meId: string; secretBid: number | null; setSecretBid: (v: number | null) => void }) {
   const me = room.players.find((p) => p.id === meId);
+  const missionId = useMissionId();
+  const mission = room.mode === 'mission' && missionId ? MISSION_BY_ID[missionId] : undefined;
   return (
     <div className="app student">
       <TopBar room={room}>
@@ -318,9 +312,16 @@ function StudentRoom({ room, meId, secretBid, setSecretBid }: { room: PublicRoom
       </TopBar>
       {room.phase === 'lobby' ? (
         <main className="st-lobby">
-          {me && <Avatar color={me.color} size={120} />}
+          {me && <Avatar color={me.color} size={mission ? 84 : 120} />}
           <h1>Você entrou, {me?.name}!</h1>
-          <p>Aguarde o professor começar. Você tem <b>{brl(room.startingBalance)}</b> para montar o computador mais funcional da turma.</p>
+          {mission ? (
+            <>
+              <p>Aguarde o professor começar. Você tem <b>{brl(room.startingBalance)}</b> para montar o computador do seu cliente.</p>
+              <MissionCard mission={mission} big />
+            </>
+          ) : (
+            <p>Aguarde o professor começar. Você tem <b>{brl(room.startingBalance)}</b> para montar o computador mais funcional da turma.</p>
+          )}
           <div className="others">
             {room.players.map((p) => (
               <span key={p.id} title={p.name}><Avatar color={p.color} size={34} /></span>
@@ -333,7 +334,7 @@ function StudentRoom({ room, meId, secretBid, setSecretBid }: { room: PublicRoom
         </main>
       ) : (
         <main className="game">
-          <Stage room={room} meId={meId} secretBid={secretBid} setSecretBid={setSecretBid} />
+          <Stage room={room} meId={meId} secretBid={secretBid} setSecretBid={setSecretBid} aside={mission && <MissionCard mission={mission} />} />
         </main>
       )}
     </div>

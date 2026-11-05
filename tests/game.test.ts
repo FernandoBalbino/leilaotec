@@ -33,10 +33,10 @@ function fakeClock(seed = 1) {
   return { clock, advance };
 }
 
-function setup(players = 2, balance = 3000) {
+function setup(players = 2, balance = 3000, mode: 'classic' | 'mission' = 'classic') {
   const { clock, advance } = fakeClock();
   const game = new Game({ clock });
-  const room = game.createRoom(balance, 30);
+  const room = game.createRoom({ startingBalance: balance, matchMinutes: 30, mode });
   const ps = Array.from({ length: players }, (_, k) => game.join(room.code, `Aluno ${k + 1}`).player);
   return { game, room, ps, advance };
 }
@@ -159,4 +159,87 @@ test('ranking desempata pelo saldo que sobrou', () => {
   const mk = (id: string, items: string[], balance: number) => ({ id, name: id, color: '', balance, items, online: true });
   const r = rankPlayers([mk('a', ['ram-8'], 100), mk('b', ['ram-8'], 900), mk('c', [], 3000)]);
   assert.deepEqual(r.map((x) => x.player.id), ['b', 'a', 'c']);
+});
+
+test('missões: cada aluno recebe uma diferente e elas só aparecem no fim', () => {
+  const { game, room, ps } = setup(23, 3000, 'mission');
+  const ids = ps.map((p) => game.missionOf(room, p.id));
+  assert.equal(new Set(ids).size, 23);
+  assert.equal(game.view(room).missions, null, 'segredo durante o jogo');
+  game.start(room);
+  game.finish(room, 'teacher');
+  assert.equal(Object.keys(game.view(room).missions!).length, 23);
+});
+
+test('nova partida na mesma sala zera saldo e peças e troca o modo', () => {
+  const { game, room, ps, advance } = setup(2);
+  game.start(room);
+  room.lot!.secret = false;
+  toBidding(advance);
+  game.bid(room, ps[0].id, room.lot!.startPrice);
+  game.closeNow(room);
+  assert.throws(() => game.restart(room, { startingBalance: 4000, matchMinutes: 20, mode: 'mission' }), /Termine/);
+  game.finish(room, 'teacher');
+  game.restart(room, { startingBalance: 4000, matchMinutes: 20, mode: 'mission' });
+  assert.equal(room.phase, 'lobby');
+  assert.equal(room.mode, 'mission');
+  assert.equal(room.players.length, 2);
+  assert.deepEqual(ps.map((p) => [p.balance, p.items.length]), [[4000, 0], [4000, 0]]);
+  assert.equal(room.wheel.length, 54);
+  assert.ok(game.missionOf(room, ps[0].id));
+});
+
+test('respostas finais: só depois de liberar, completas, sem resposta curta e uma vez só', () => {
+  const { game, room, ps } = setup(1);
+  const sheet = { questions: ['a', 'b', 'c', 'd', 'e'], answers: Array(5).fill('Porque sem fonte o PC não liga.') };
+  game.start(room);
+  game.finish(room, 'teacher');
+  assert.throws(() => game.submitAnswers(room, ps[0].id, sheet), /liberadas/);
+  game.reveal(room);
+  assert.throws(() => game.submitAnswers(room, ps[0].id, { ...sheet, answers: [...sheet.answers.slice(1), 'sim'] }), /pelo menos/);
+  assert.throws(() => game.submitAnswers(room, ps[0].id, { ...sheet, answers: sheet.answers.slice(1) }), /5 perguntas/);
+  game.submitAnswers(room, ps[0].id, sheet);
+  assert.deepEqual(game.view(room).answered, [ps[0].id]);
+  assert.throws(() => game.submitAnswers(room, ps[0].id, sheet), /já enviou/);
+});
+
+test('pontuação da missão: atender o cliente vale mais que peça cara', async () => {
+  const { MISSION_BY_ID } = await import('../shared/missions.ts');
+  const basic = ['mb-basica', 'cpu-i3', 'ram-4', 'hd-500', 'psu-400', 'cooler-box', 'case-simples', 'so-linux', 'kb-simples', 'mouse-simples'];
+  const vovo = MISSION_BY_ID['vovo-chamada'];
+  assert.equal(scoreBuild([...basic, 'mon-24', 'webcam', 'caixa-som'], vovo).percent, 100, 'vó não precisa de placa de vídeo');
+  const monitorFraco = scoreBuild([...basic, 'mon-19', 'webcam', 'caixa-som'], vovo);
+  assert.deepEqual(monitorFraco.weak.map((s) => s.id), ['monitor']);
+  assert.ok(monitorFraco.percent < 100);
+  assert.ok(scoreBuild([...basic, 'mon-24', 'gpu-gamer'], vovo).percent < scoreBuild([...basic, 'mon-24', 'webcam'], vovo).percent);
+  const gamer = MISSION_BY_ID.gamer;
+  assert.ok(scoreBuild([...basic, 'mon-19', 'gpu-gamer'], gamer).percent > scoreBuild([...basic, 'mon-19', 'gpu-basica'], gamer).percent);
+  const { MISSIONS } = await import('../shared/missions.ts');
+  assert.ok(MISSIONS.length >= 23);
+  for (const m of MISSIONS) for (const id of m.extras ?? []) assert.equal(ITEMS.find((i) => i.id === id)?.slot, 'extra', `${m.id}: ${id}`);
+});
+
+test('perguntas finais usam o que cada aluno comprou e comparam com o vencedor', async () => {
+  const { buildQuestions } = await import('../shared/questions.ts');
+  const { game, room, ps } = setup(2);
+  game.start(room);
+  ps[0].items = ['cadeira'];
+  ps[0].balance = 2200;
+  ps[1].items = ['mb-basica', 'cpu-i3'];
+  ps[1].balance = 2400;
+  room.history = [
+    { itemId: 'cadeira', winnerId: ps[0].id, price: 800, secret: false },
+    { itemId: 'mb-basica', winnerId: ps[1].id, price: 250, secret: false },
+    { itemId: 'cpu-i3', winnerId: ps[1].id, price: 350, secret: true },
+  ];
+  game.finish(room, 'teacher');
+  const q = buildQuestions(game.view(room), ps[0].id);
+  assert.equal(q.length, 5);
+  assert.match(q[0], /R\$ 800 em acessórios \(Cadeira gamer\)/);
+  assert.match(q[1], /sem Placa-mãe e sem Processador/);
+  assert.match(q[2], /Cadeira gamer por R\$ 800.*R\$ 500/);
+  assert.match(q[3], /Aluno 2 venceu com 23% gastando R\$ 600/);
+  const winnerQ = buildQuestions(game.view(room), ps[1].id);
+  assert.match(winnerQ[3], /Você venceu/);
+  assert.match(winnerQ[2], /lance secreto/);
 });
