@@ -16,6 +16,16 @@ const open = async (w: number, h: number) => {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && !/sounds\/|Failed to load resource/.test(m.text()) && errors.push(m.text()));
   page.on('dialog', (d) => d.accept());
+  // Registra cada som tocado (para conferir no fim).
+  await page.addInitScript(() => {
+    const w = window as unknown as { played: string[] };
+    w.played = [];
+    const orig = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      w.played.push(this.currentSrc || this.src);
+      return orig.call(this);
+    };
+  });
   return page;
 };
 const shot = (p: Page, name: string) => p.screenshot({ path: `${OUT}/${name}.png` });
@@ -73,6 +83,9 @@ try {
   await tv.locator('.result-card').waitFor();
   await tv.waitForTimeout(secret ? 2600 : 800);
   await shot(tv, '07-vendido-tv');
+  const played = await tv.evaluate(() => (window as unknown as { played: string[] }).played.join(' '));
+  for (const s of ['roleta', 'item', 'lance']) if (!played.includes(`sounds/${s}.mp3`)) errors.push(`som ${s} não tocou na TV`);
+  step('sons na TV: ' + [...new Set(played.match(/\w+(?=\.mp3)/g))].join(', '));
   const winner = await tv.locator('.sold-who strong').textContent();
   step(`vencedor: ${winner}`);
 

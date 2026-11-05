@@ -1,7 +1,7 @@
-// Efeitos sonoros (arquivos em public/sounds). Arquivo ausente = silêncio, sem erro.
+// Efeitos sonoros gerados no ElevenLabs (arquivos em public/sounds).
 import { useSyncExternalStore } from 'react';
 
-export type SoundName = 'roleta' | 'item' | 'contagem' | 'lance' | 'vendido' | 'secreto' | 'barra' | 'rufar' | 'vitoria';
+export type SoundName = 'roleta' | 'item' | 'contagem' | 'lance';
 
 const cache = new Map<SoundName, HTMLAudioElement>();
 const listeners = new Set<() => void>();
@@ -18,7 +18,7 @@ const load = (name: SoundName) => {
 };
 
 export function preloadSounds() {
-  (['roleta', 'item', 'contagem', 'lance', 'vendido', 'secreto', 'barra', 'rufar', 'vitoria'] as SoundName[]).forEach(load);
+  (['roleta', 'item', 'contagem', 'lance'] as SoundName[]).forEach(load);
 }
 
 export function play(name: SoundName, volume = 1) {
@@ -28,12 +28,17 @@ export function play(name: SoundName, volume = 1) {
   node.play().catch(() => {});
 }
 
-export function setMuted(value: boolean) {
+const apply = (value: boolean) => {
   muted = value;
+  listeners.forEach((f) => f());
+};
+
+// Só a escolha da pessoa (botão 🔊/🔇) fica salva; o padrão de cada papel não.
+export function setMuted(value: boolean) {
+  apply(value);
   try {
     localStorage.setItem('leilaotec:mudo', value ? '1' : '0');
   } catch { /* sem storage */ }
-  listeners.forEach((f) => f());
 }
 
 // Professor (TV) começa com som; aluno começa mudo para a sala não virar 30 roletas ao mesmo tempo.
@@ -42,7 +47,7 @@ export function initMuted(defaultMuted: boolean) {
   try {
     saved = localStorage.getItem('leilaotec:mudo');
   } catch { /* sem storage */ }
-  setMuted(saved === null ? defaultMuted : saved === '1');
+  apply(saved === null ? defaultMuted : saved === '1');
 }
 
 export const useMuted = () =>

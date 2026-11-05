@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import confetti from 'canvas-confetti';
 import { ITEM_BY_ID, brl } from '../../shared/catalog.ts';
 import { rankPlayers, type PublicRoom, type Ranked } from '../../shared/protocol.ts';
-import { play } from './sound.ts';
 import { Avatar, ItemImg, reducedMotion } from './ui.tsx';
 
 const SLIDE_MS = 8500;
@@ -18,14 +17,13 @@ function Meter({ percent, delay = 900 }: { percent: number; delay?: number }) {
     if (reducedMotion()) return;
     let raf = 0;
     const t0 = performance.now() + delay;
-    const timer = setTimeout(() => play('barra', 0.8), delay);
     const step = (t: number) => {
       const k = Math.max(0, Math.min(1, (t - t0) / 2600));
       setShown(percent * (1 - (1 - k) ** 3));
       if (k < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
-    return () => (cancelAnimationFrame(raf), clearTimeout(timer));
+    return () => cancelAnimationFrame(raf);
   }, [percent, delay]);
   useEffect(() => {
     if (fill.current) fill.current.style.clipPath = `inset(0 ${100 - shown}% 0 0 round 999px)`;
@@ -146,7 +144,6 @@ export function RankingTable({ ranking, meId }: { ranking: Ranked[]; meId?: stri
 }
 
 export const celebrate = () => {
-  play('vitoria');
   if (reducedMotion()) return;
   const end = Date.now() + 2500;
   const shot = () => {
@@ -172,7 +169,6 @@ export function FinalShow({ room, onReveal, onNew }: { room: PublicRoom; onRevea
     return () => clearTimeout(id);
   }, [step, paused, n]);
   useEffect(() => {
-    if (step === n) play('rufar');
     if (step === n + 1) celebrate();
   }, [step, n]);
   useEffect(() => {

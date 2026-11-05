@@ -35,7 +35,7 @@ function LotPanel({ room, compact }: { room: PublicRoom; compact?: boolean }) {
     const el = hero.current;
     const sinceLand = serverNow() - lot.spinStartAt - SPIN_MS;
     if (!intro || !el || sinceLand > 700) return;
-    play(lot.secret ? 'secreto' : 'item');
+    play('item');
     if (reducedMotion()) return;
     const r = el.getBoundingClientRect();
     const img = el.querySelector('img')?.getBoundingClientRect() ?? r;
@@ -126,10 +126,6 @@ function ResultOverlay({ room }: { room: PublicRoom }) {
   const byId = (id: string | null) => room.players.find((p) => p.id === id);
   const winner = byId(res.winnerId);
   const item = ITEM_BY_ID[lot.itemId];
-  useEffect(() => {
-    if (res.kind === 'sold') setTimeout(() => play('vendido'), lot.secret ? 2200 : 150);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
     <div className="overlay" role="status" aria-live="polite">
       <div className={`result-card result-${res.kind} ${lot.secret ? 'is-secret' : ''}`}>
