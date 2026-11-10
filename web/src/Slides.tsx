@@ -171,6 +171,15 @@ const SLIDES: { eyebrow: string; title: ReactNode; body: ReactNode }[] = [
       </>
     ),
   },
+  {
+    eyebrow: 'Antes de jogar',
+    title: 'Como funciona o leilão',
+    body: (
+      <div className="sl-video in" style={at(2)}>
+        <video src={`${import.meta.env.BASE_URL}video/leilaotec.mp4`} poster={`${import.meta.env.BASE_URL}video/poster.jpg`} controls playsInline preload="metadata" />
+      </div>
+    ),
+  },
 ];
 
 const fromHash = () => Math.min(SLIDES.length - 1, Math.max(0, Number(location.hash.slice(1)) - 1 || 0));
@@ -184,6 +193,7 @@ export function Slides() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLButtonElement && (e.key === ' ' || e.key === 'Enter')) return; // deixa o botão focado agir
+      if (e.target instanceof HTMLVideoElement) return; // vídeo em foco: espaço e setas controlam o vídeo
       if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) setN((k) => Math.min(SLIDES.length - 1, k + 1));
       else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) setN((k) => Math.max(0, k - 1));
       else if (e.key === 'Home') setN(0);

@@ -1,0 +1,128 @@
+{
+  "s1": {
+    "file": "voice/s1.mp3",
+    "duration": 13.611,
+    "cues": {
+      "logo": 1.847,
+      "tech": 4.514,
+      "pc": 7.797,
+      "detail": 10.259,
+      "auction": 12.175
+    }
+  },
+  "s4": {
+    "file": "voice/s4.mp3",
+    "duration": 15.936,
+    "cues": {
+      "minute": 0.615,
+      "all": 2.4,
+      "cover": 5.291,
+      "p50": 8.614,
+      "p100": 9.66,
+      "end": 10.275,
+      "sold": 11.26,
+      "pay": 14.89
+    }
+  },
+  "s5": {
+    "file": "voice/s5.mp3",
+    "duration": 12.644,
+    "cues": {
+      "lock": 0.618,
+      "one": 3.299,
+      "hidden": 5.36,
+      "reveal": 8.521,
+      "win": 10.995
+    }
+  },
+  "s10": {
+    "file": "voice/s10.mp3",
+    "duration": 9.066,
+    "cues": {
+      "listen": 0.838,
+      "spend": 2.209,
+      "first": 5.104,
+      "ready": 5.942,
+      "go": 7.542
+    }
+  },
+  "s2": {
+    "file": "voice/s2.mp3",
+    "duration": 12.278,
+    "cues": {
+      "site": 0.849,
+      "code": 2.286,
+      "name": 5.42,
+      "avatar": 7.184,
+      "balance": 8.555,
+      "warn": 10.645
+    }
+  },
+  "s3": {
+    "file": "voice/s3.mp3",
+    "duration": 12.591,
+    "cues": {
+      "spin": 0.141,
+      "cpu": 3.095,
+      "ram": 4.22,
+      "mon": 5.135,
+      "chair": 6.612,
+      "big": 8.16,
+      "start": 10.27
+    }
+  },
+  "s6": {
+    "file": "voice/s6.mp3",
+    "duration": 18.364,
+    "cues": {
+      "work": 1.978,
+      "main": 4.45,
+      "repeat": 7.911,
+      "best": 9.253,
+      "acc": 10.736,
+      "chair": 13.279,
+      "tie": 15.821,
+      "save": 17.234
+    }
+  },
+  "s7": {
+    "file": "voice/s7.mp3",
+    "duration": 15.882,
+    "cues": {
+      "mode": 2.047,
+      "secret": 4.343,
+      "cida": 5.832,
+      "call": 7.631,
+      "skip": 10.485,
+      "extra": 12.098,
+      "hint": 14.393
+    }
+  },
+  "s8": {
+    "file": "voice/s8.mp3",
+    "duration": 18.834,
+    "cues": {
+      "go": 0,
+      "cpu": 1.464,
+      "ana1": 6.322,
+      "bruno": 7.52,
+      "ana2": 9.384,
+      "sold": 10.515,
+      "chair": 12.778,
+      "spend": 14.442,
+      "joke": 16.505
+    }
+  },
+  "s9": {
+    "file": "voice/s9.mp3",
+    "duration": 12.434,
+    "cues": {
+      "end": 0.586,
+      "each": 2.604,
+      "missing": 6.054,
+      "bruno": 7.356,
+      "ana": 9.895,
+      "podium": 12.044
+    }
+  }
+}

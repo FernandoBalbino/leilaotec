@@ -15,6 +15,7 @@ Jogo de leilão em tempo real para turmas do técnico em Manutenção e Suporte 
 - **Rotas:** `main.tsx` escolhe a página pelo caminho (`/slide` → `Slides.tsx`, `/atividade` → `Atividade.tsx`, resto → `App`). O GitHub Pages não tem fallback de SPA, então o `vite.config.ts` copia o `index.html` para `dist/<rota>/` no build. Rota nova = entrar nas duas listas.
 - `?sala=` (mesmo vazio) abre a tela inicial direto no formulário do aluno. A `/atividade` usa isso no botão final.
 - Campos de resposta usam `TypedTextarea` (`ui.tsx`), que bloqueia colar e arrastar.
+- **Vídeo de como jogar:** projeto Remotion separado em `video/` (com o próprio `package.json`). Ele não entra no `tsconfig` da raiz. O texto das falas fica em `video/src/script.ts` e as instruções de voz em `video/roteiro.md`. Para atualizar: `npm run voice`, depois `npm run render` e `npm run poster`. A saída vai para `web/public/video/`, que é o último slide de `/slide`. Animações só por quadro (`useCurrentFrame`), nunca por CSS animation.
 
 ## Regras de produto
 - Lance inicial nunca passa de R$ 700 (há teste para isso).
