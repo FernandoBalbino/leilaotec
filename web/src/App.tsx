@@ -91,7 +91,8 @@ export function App() {
 
 function Home({ notice, connected, onSession }: { notice: string; connected: boolean; onSession: (s: Session) => void }) {
   const params = new URLSearchParams(location.search);
-  const [mode, setMode] = useState<'home' | 'teacher' | 'student'>(params.get('sala') ? 'student' : 'home');
+  // ?sala=ABCD já preenche o código; ?sala= (vazio, vindo da /atividade) abre direto o formulário do aluno.
+  const [mode, setMode] = useState<'home' | 'teacher' | 'student'>(params.has('sala') ? 'student' : 'home');
   const [code, setCode] = useState((params.get('sala') ?? '').toUpperCase());
   const [name, setName] = useState('');
   const [error, setError] = useState('');

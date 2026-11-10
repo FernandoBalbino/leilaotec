@@ -16,6 +16,8 @@ Prints em `qa-evidence/` (gerados por `npm run e2e` e `node scripts/tv-30.ts`).
 | Perguntas finais | 5 perguntas do próprio jogo, colar bloqueado, mínimo de 15 letras; o professor vê "Respostas X de Y" e lê cada uma | `11-resultado-aluno.png`, `12-respostas-tv.png` |
 | Modo missão | Missão secreta grande na espera e destacada durante os lances; slide final com a missão, peças fracas, acessórios pedidos e a lição | `13-missao-aluno.png`, `14-lances-com-missao.png`, `15-slide-missao-tv.png` |
 | Aluno no final | "Olhe para a TV!" até o professor liberar; depois o pódio e o resultado próprio | `08-aluno-espera-tv.png`, `11-resultado-aluno.png` |
+| Slides (`/slide`) | 8 slides com entrada em sequência, barra de progresso, pontos clicáveis, ← → / espaço, tela cheia; conferido em 1366×768, 1920×1080 e 375 px (sem rolagem lateral) | conferido no navegador |
+| Trilha (`/atividade`) | 5 nós (feito ✓ / atual pulsando / bloqueado 🔒), linha de progresso, colar e copiar bloqueados com aviso, mínimo de letras por missão, dica ao cumprir cada missão; tela final com troféu, confete e botão que abre "Entrar na sala" | conferido no navegador |
 
 ## Critérios
 - TV em 1366×768 (notebook espelhado) e 1920×1080. Fonte escala com `vw`.

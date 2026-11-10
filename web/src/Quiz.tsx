@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type CSSProperties, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ANSWER_MAX, ANSWER_MIN, type AnswerSheet, type PublicRoom } from '../../shared/protocol.ts';
 import { buildQuestions } from '../../shared/questions.ts';
 import { send } from './net.ts';
-import { Avatar } from './ui.tsx';
+import { Avatar, TypedTextarea } from './ui.tsx';
 
 const draftKey = (room: PublicRoom, meId: string) => `leilaotec:respostas:${room.code}:${room.matchEndsAt}:${meId}`;
 
@@ -35,10 +35,7 @@ export function Quiz({ room, meId }: { room: PublicRoom; meId: string }) {
       </section>
     );
 
-  const block = (e: SyntheticEvent) => {
-    e.preventDefault();
-    setWarn('Colar está desativado. Escreva com as suas palavras 🙂');
-  };
+  const blocked = () => setWarn('Colar está desativado. Escreva com as suas palavras 🙂');
   const left = answers.filter((a) => a.trim().length < ANSWER_MIN).length;
   const submit = async () => {
     setBusy(true);
@@ -55,18 +52,12 @@ export function Quiz({ room, meId }: { room: PublicRoom; meId: string }) {
         return (
           <label key={k} className="q">
             <span className="q-text"><b>{k + 1}.</b> {q}</span>
-            <textarea
+            <TypedTextarea
               value={answers[k]}
               maxLength={ANSWER_MAX}
               rows={3}
-              autoComplete="off"
               onChange={(e) => setAnswers((list) => list.map((a, j) => (j === k ? e.target.value : a)))}
-              onPaste={block}
-              onDrop={block}
-              onBeforeInput={(e) => {
-                const type = (e.nativeEvent as InputEvent).inputType ?? '';
-                if (type.startsWith('insertFromPaste') || type === 'insertFromDrop') block(e);
-              }}
+              onBlocked={blocked}
             />
             <small className={len >= ANSWER_MIN ? 'ok' : ''}>{len >= ANSWER_MIN ? '✓' : `${len}/${ANSWER_MIN} letras no mínimo`}</small>
           </label>

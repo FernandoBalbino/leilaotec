@@ -12,6 +12,9 @@ Jogo de leilão em tempo real para turmas do técnico em Manutenção e Suporte 
 - **Perguntas finais:** `buildQuestions` (shared) gera o texto a partir de `history` e do ranking. O servidor guarda as respostas (`submitAnswers`), e só o professor lê (`teacher:answers`). O estado público tem apenas `answered`.
 - **Nova partida:** `game.restart` reaproveita a sala e os alunos e zera saldo, peças, roleta, respostas e missões.
 - Eventos: `state` (estado completo, agrupado por microtask) e `bid` (incremental). Mantenha os payloads pequenos (banda do Render).
+- **Rotas:** `main.tsx` escolhe a página pelo caminho (`/slide` → `Slides.tsx`, `/atividade` → `Atividade.tsx`, resto → `App`). O GitHub Pages não tem fallback de SPA, então o `vite.config.ts` copia o `index.html` para `dist/<rota>/` no build. Rota nova = entrar nas duas listas.
+- `?sala=` (mesmo vazio) abre a tela inicial direto no formulário do aluno. A `/atividade` usa isso no botão final.
+- Campos de resposta usam `TypedTextarea` (`ui.tsx`), que bloqueia colar e arrastar.
 
 ## Regras de produto
 - Lance inicial nunca passa de R$ 700 (há teste para isso).

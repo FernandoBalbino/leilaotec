@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent, type TextareaHTMLAttributes } from 'react';
 import { ITEM_BY_ID, brl } from '../../shared/catalog.ts';
 import type { Lot, PublicPlayer } from '../../shared/protocol.ts';
 import { serverNow } from './net.ts';
@@ -68,6 +68,23 @@ export function ItemImg({ id, size, thumb, className = '' }: { id: string; size?
       height={size}
       draggable={false}
       loading={thumb ? 'lazy' : 'eager'}
+    />
+  );
+}
+
+// Campo de resposta que só aceita digitação: colar e arrastar texto ficam bloqueados.
+export function TypedTextarea({ onBlocked, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { onBlocked: () => void }) {
+  const block = (e: SyntheticEvent) => (e.preventDefault(), onBlocked());
+  return (
+    <textarea
+      {...props}
+      autoComplete="off"
+      onPaste={block}
+      onDrop={block}
+      onBeforeInput={(e) => {
+        const type = (e.nativeEvent as InputEvent).inputType ?? '';
+        if (type.startsWith('insertFromPaste') || type === 'insertFromDrop') block(e);
+      }}
     />
   );
 }

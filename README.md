@@ -7,6 +7,10 @@ Atividade de abertura do tema **Empreendedorismo no atendimento** (Suporte Técn
 - **Jogar:** https://fernandobalbino.github.io/leilaotec/
 - **Servidor (Render):** https://leilaotec.onrender.com/health
 
+## Antes da partida
+1. **Slides na TV:** https://fernandobalbino.github.io/leilaotec/slide. São 8 slides curtos sobre empreendedorismo no atendimento: escutar o cliente, nem mais nem menos, oportunidades de mercado e o dinheiro do cliente. Use ← → ou espaço, e ⛶ para tela cheia.
+2. **Trilha no Chromebook:** https://fernandobalbino.github.io/leilaotec/atividade. São 5 missões: 2 sobre o tema, 2 sobre a estratégia do leilão e 1 para lembrar as peças do computador. Copiar e colar ficam bloqueados, e cada missão destrava a próxima com uma dica. No fim, o botão **Entrar na sala do leilão** abre direto o formulário de código e nome. As respostas ficam só no navegador do aluno (não vão para o servidor).
+
 ## Como funciona
 
 1. **Professor:** "Sou professor" → escolhe o saldo de cada aluno (R$ 2.000 a 5.000) e o tempo da partida → passa a tela na TV.
